@@ -16,6 +16,7 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <style>
         :root {
@@ -51,6 +52,53 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+        }
+
+        /* Auth Overlay */
+        #auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-deep-navy);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image:
+                radial-gradient(circle at 50% 50%, rgba(0, 245, 255, 0.05) 0%, transparent 70%);
+        }
+
+        .auth-card {
+            width: 400px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--electric-cyan);
+            padding: 40px;
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.1);
+            text-align: center;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+            border-bottom: 2px solid transparent;
+        }
+
+        .auth-tab.active {
+            color: var(--electric-cyan);
+            border-bottom-color: var(--electric-cyan);
         }
 
         /* Custom Scrollbar */
@@ -546,11 +594,48 @@
 
 <body>
 
+    <div id="auth-overlay">
+        <div class="auth-card">
+            <h1 class="logo" style="margin-bottom: 20px;">CODE_DOJO //</h1>
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tab-login">LOGIN</div>
+                <div class="auth-tab" id="tab-signup">SIGNUP</div>
+            </div>
+
+            <div id="auth-form">
+                <div class="form-group" style="text-align: left;">
+                    <label>EMAIL_ADDRESS</label>
+                    <input type="email" class="form-control" id="auth-email" placeholder="samurai@matrix.com">
+                </div>
+                <div class="form-group" style="text-align: left;">
+                    <label>PASSWORD</label>
+                    <input type="password" class="form-control" id="auth-password" placeholder="********">
+                </div>
+                <button class="btn btn-primary" id="btn-auth-submit"
+                    style="width: 100%; margin-top: 10px;">ENTER_THE_DOJO</button>
+                <div id="auth-message" style="margin-top: 15px; font-size: 0.75rem; min-height: 1rem;"></div>
+            </div>
+
+            <div style="margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
+                <p style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-bottom: 10px;">OR AUTHENTICATE VIA</p>
+                <button class="btn" style="width: 100%; border-color: white; color: white;">GITHUB_LINK</button>
+            </div>
+        </div>
+    </div>
+
     <div id="cursor-dot"></div>
 
     <header>
         <div class="logo">CODE_DOJO //</div>
-        <button class="btn btn-primary" id="btn-add-problem">+ ADD PROBLEM</button>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div id="user-display"
+                style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--electric-cyan); display:none;">
+                USER: <span id="user-email">...</span>
+            </div>
+            <button class="btn" id="btn-logout" style="border:none; font-size:0.7rem; padding:5px; display:none;">[
+                LOGOUT ]</button>
+            <button class="btn btn-primary" id="btn-add-problem">+ ADD PROBLEM</button>
+        </div>
     </header>
 
     <main>
@@ -705,6 +790,13 @@
     </div>
 
     <script>
+        // --- SUPABASE CONFIG ---
+        const SUPABASE_URL = "YOUR_SUPABASE_URL";
+        const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+        const supabase = (SUPABASE_URL !== "YOUR_SUPABASE_URL")
+            ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+            : null;
+
         // --- DATA LAYER ---
         const DEFAULT_PROBLEMS = [
             {
@@ -749,21 +841,81 @@
         ];
 
         let state = {
+            user: null,
             problems: JSON.parse(localStorage.getItem('codedojo_problems')) || DEFAULT_PROBLEMS,
             currentProblemId: null,
             filters: {
                 search: '',
                 difficulty: 'all',
                 bookmarked: false
-            }
+            },
+            authMode: 'login'
         };
 
         const saveToLocal = () => {
             localStorage.setItem('codedojo_problems', JSON.stringify(state.problems));
         };
 
+        // --- AUTH LOGIC ---
+        const initAuth = () => {
+            if (!supabase) {
+                console.warn("Supabase not configured. Using local mode.");
+                document.getElementById('auth-overlay').style.display = 'none';
+                return;
+            }
+
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                handleAuthStateChange(session);
+            });
+
+            supabase.auth.onAuthStateChange((_event, session) => {
+                handleAuthStateChange(session);
+            });
+        };
+
+        const handleAuthStateChange = async (session) => {
+            if (session) {
+                state.user = session.user;
+                document.getElementById('auth-overlay').style.display = 'none';
+                document.getElementById('user-display').style.display = 'block';
+                document.getElementById('btn-logout').style.display = 'block';
+                document.getElementById('user-email').innerText = state.user.email;
+                await fetchProblems();
+            } else {
+                state.user = null;
+                document.getElementById('auth-overlay').style.display = 'flex';
+                document.getElementById('user-display').style.display = 'none';
+                document.getElementById('btn-logout').style.display = 'none';
+                state.problems = (JSON.parse(localStorage.getItem('codedojo_problems')) || DEFAULT_PROBLEMS);
+                renderProblemList();
+                updateStats();
+            }
+        };
+
+        const fetchProblems = async () => {
+            if (!supabase || !state.user) return;
+            const { data, error } = await supabase
+                .from('problems')
+                .select('*')
+                .order('id', { ascending: true });
+
+            if (!error && data && data.length > 0) {
+                state.problems = data;
+                renderProblemList();
+                updateStats();
+            }
+        };
+
         // --- UI CONTROLLER ---
         const DOM = {
+            authOverlay: document.getElementById('auth-overlay'),
+            authEmail: document.getElementById('auth-email'),
+            authPassword: document.getElementById('auth-password'),
+            btnAuthSubmit: document.getElementById('btn-auth-submit'),
+            authMessage: document.getElementById('auth-message'),
+            tabLogin: document.getElementById('tab-login'),
+            tabSignup: document.getElementById('tab-signup'),
+            btnLogout: document.getElementById('btn-logout'),
             problemList: document.getElementById('problem-list'),
             panel1: document.getElementById('panel-1'),
             panel2: document.getElementById('panel-2'),
@@ -775,7 +927,6 @@
             btnCloseModal: document.getElementById('btn-close-modal'),
             searchBar: document.getElementById('search-input'),
             filterTabs: document.querySelectorAll('.filter-tab'),
-            // Workspace
             currentTitle: document.getElementById('current-title'),
             currentBadge: document.getElementById('current-badge'),
             codeEditor: document.getElementById('code-editor'),
@@ -786,7 +937,6 @@
             problemDesc: document.getElementById('problem-description'),
             btnBookmark: document.getElementById('btn-bookmark'),
             btnComplete: document.getElementById('btn-complete'),
-            // Dashboard
             progressCircle: document.getElementById('progress-circle'),
             progressText: document.getElementById('progress-text'),
             streakDots: document.getElementById('streak-dots'),
@@ -795,26 +945,21 @@
             dashStreak: document.getElementById('dash-streak')
         };
 
-        // Custom Cursor
         document.addEventListener('mousemove', (e) => {
             DOM.cursor.style.left = e.clientX + 'px';
             DOM.cursor.style.top = e.clientY + 'px';
         });
 
-        // Animations
         const initAnimations = () => {
             [DOM.panel1, DOM.panel2, DOM.panel3].forEach((panel, i) => {
-                setTimeout(() => {
-                    panel.classList.add('animate-in');
-                }, 150 * (i + 1));
+                setTimeout(() => { panel.classList.add('animate-in'); }, 150 * (i + 1));
             });
         };
 
-        // Render List
         const renderProblemList = () => {
             const filtered = state.problems.filter(p => {
-                const searchMatch = p.name.toLowerCase().includes(state.filters.search.toLowerCase()) ||
-                    p.tags.some(t => t.toLowerCase().includes(state.filters.search.toLowerCase()));
+                const searchMatch = (p.name || '').toLowerCase().includes(state.filters.search.toLowerCase()) ||
+                    (p.tags || []).some(t => t.toLowerCase().includes(state.filters.search.toLowerCase()));
                 const difficultyMatch = state.filters.difficulty === 'all' || p.difficulty === state.filters.difficulty;
                 const bookmarkMatch = !state.filters.bookmarked || p.bookmarked;
                 return searchMatch && difficultyMatch && bookmarkMatch;
@@ -838,282 +983,115 @@
             const today = new Date().toISOString().split('T')[0];
             const solvedToday = state.problems.filter(p => p.solvedDate === today).length;
             const total = state.problems.length;
-
-            // Progress Ring
             const radius = 26;
             const circumference = 2 * Math.PI * radius;
             const percentage = total > 0 ? (solvedToday / total) : 0;
             const offset = circumference - (percentage * circumference);
-
             DOM.progressCircle.style.strokeDashoffset = offset;
             DOM.progressText.innerText = `${solvedToday}/${total}`;
             DOM.dashSolved.innerText = solvedToday;
-
-            // Streak Dots (Mock)
-            DOM.streakDots.innerHTML = Array(7).fill(0).map((_, i) => `
-                <div class="dot ${i < 5 ? 'active' : ''}"></div>
-            `).join('');
+            DOM.streakDots.innerHTML = Array(7).fill(0).map((_, i) => `<div class="dot ${i < 5 ? 'active' : ''}"></div>`).join('');
         };
 
-        // Actions
         const selectProblem = (id) => {
             state.currentProblemId = id;
             const p = state.problems.find(p => p.id === id);
-
+            if (!p) return;
             DOM.currentTitle.innerText = p.name;
-            DOM.currentBadge.innerText = p.difficulty;
             DOM.currentBadge.className = `badge ${p.difficulty}`;
+            DOM.currentBadge.innerText = p.difficulty;
             DOM.codeEditor.value = p.code || '';
-
-            // Auto-detect language for highlight.js logic (simulated)
-            const isJava = (p.code && (p.code.includes('class') || p.code.includes('public'))) || p.name.toLowerCase().includes('java');
-            const langClass = isJava ? 'language-java' : 'language-javascript';
-
             DOM.problemDesc.innerHTML = `
                 <h1>${p.name}</h1>
-                <div style="margin-bottom: 15px;">
-                    ${p.tags.map(t => `<span class="tag-chip">${t}</span>`).join('')}
-                </div>
+                <div style="margin-bottom: 15px;">${(p.tags || []).map(t => `<span class="tag-chip">${t}</span>`).join('')}</div>
                 <p>${p.description}</p>
                 <div style="margin-top: 20px;">
                     <h3 style="font-family: var(--font-mono); font-size: 0.9rem; color: var(--electric-cyan);">EXAMPLE</h3>
                     <pre><code class="language-text">${p.example}</code></pre>
                 </div>
             `;
-
             DOM.btnBookmark.style.filter = p.bookmarked ? 'grayscale(0)' : 'grayscale(1)';
             DOM.takeawaysContainer.style.display = 'none';
-
             renderProblemList();
             hljs.highlightAll();
         };
 
-        const toggleSolve = (id) => {
+        const toggleSolve = async (id) => {
             const p = state.problems.find(p => p.id === id);
             if (!p) return;
             p.solved = !p.solved;
             p.solvedDate = p.solved ? new Date().toISOString().split('T')[0] : null;
-
-            if (p.solved) {
-                confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    origin: { y: 0.6 },
-                    colors: ['#00F5FF', '#39FF14', '#FFB800']
-                });
-            }
-
-            saveToLocal();
+            if (p.solved) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#00F5FF', '#39FF14', '#FFB800'] });
+            if (supabase && state.user) await supabase.from('problems').upsert({ ...p, user_id: state.user.id });
+            else saveToLocal();
             renderProblemList();
             updateStats();
         };
 
-        // AI Feature: Get Solution
         const getSolution = () => {
             const p = state.problems.find(p => p.id === state.currentProblemId);
             if (!p) return;
-
             DOM.btnGetSolution.innerText = "RETRIEVING DOJO WISDOM...";
             DOM.btnGetSolution.disabled = true;
-
             setTimeout(() => {
-                let solutionCode = "";
-                if (p.id === 1) { // Two Sum
-                    solutionCode = "/**\n * Two Sum Solution (O(n))\n */\nconst twoSum = (nums, target) => {\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const complement = target - nums[i];\n    if (map.has(complement)) return [map.get(complement), i];\n    map.set(nums[i], i);\n  }\n};";
-                } else if (p.id === 3) { // Merge K Lists
-                    solutionCode = "class Solution {\n    public ListNode mergeKLists(ListNode[] lists) {\n        PriorityQueue<ListNode> pq = new PriorityQueue<>((a, b) -> a.val - b.val);\n        for (ListNode node : lists) {\n            if (node != null) pq.add(node);\n        }\n        ListNode dummy = new ListNode(0);\n        ListNode curr = dummy;\n        while (!pq.isEmpty()) {\n            ListNode node = pq.poll();\n            curr.next = node;\n            curr = curr.next;\n            if (node.next != null) pq.add(node.next);\n        }\n        return dummy.next;\n    }\n}";
-                } else {
-                    solutionCode = `/**\n * Optimized Solution for ${p.name}\n * Estimated Complexity: O(N)\n */\nfunction solve() {\n  // Logic detected for ${p.tags.join(', ')}\n  // [AI GENERATED TEMPLATE]\n}`;
-                }
-
-                DOM.codeEditor.value = solutionCode;
+                let code = "";
+                if (p.id === 1) code = "const twoSum = (nums, target) => { ... };";
+                else if (p.id === 3) code = "class Solution { ... }";
+                else code = `// Solution for ${p.name}\nfunction solve() { }`;
+                DOM.codeEditor.value = code;
                 DOM.btnGetSolution.innerText = "💡 GET SOLUTION";
                 DOM.btnGetSolution.disabled = false;
-
-                // Trigger notification effect
-                DOM.codeEditor.style.boxShadow = "0 0 20px var(--warm-amber)";
-                setTimeout(() => DOM.codeEditor.style.boxShadow = "none", 1000);
             }, 1000);
         };
 
-        // AI Feature: Analyze Mistakes
         const analyzeMistakes = () => {
-            const code = DOM.codeEditor.value;
-            DOM.btnAnalyzeMistakes.innerText = "SCANNING VULNERABILITIES...";
+            DOM.btnAnalyzeMistakes.innerText = "SCANNING...";
             DOM.btnAnalyzeMistakes.disabled = true;
-
             setTimeout(() => {
                 DOM.takeawaysContainer.style.display = 'block';
-                DOM.takeawaysContainer.innerHTML = '';
-
-                let feedback = [];
-                if (!code.trim() || code.includes('// Paste')) {
-                    feedback = [
-                        { icon: '⚠️', title: 'Void Detected', text: 'Solution area is empty. Matrix scan reveals no logic to analyze.' },
-                        { icon: '🛠', title: 'Action Required', text: 'Input your implementation or use "Get Solution" to learn.' }
-                    ];
-                } else if (code.length < 50) {
-                    feedback = [
-                        { icon: '🔍', title: 'Undersized Logic', text: 'Code is too short for a complete competitive solution. Missing boilerplate or core conditions.' },
-                        { icon: '💡', title: 'Tip', text: 'Verify handle for empty inputs or null cases.' }
-                    ];
-                } else {
-                    feedback = [
-                        { icon: '✅', title: 'Syntax Integrity', text: 'Structure appears valid. Checking for logical edge cases...' },
-                        { icon: '🚩', title: 'Edge Case Alert', text: 'Ensure you handle cases like [0], negative values, or extremely large inputs (overflow check).' },
-                        { icon: '⏱', title: 'Performance Scan', text: 'Logic looks sound, but ensure O(n) target is met if nested loops are present.' }
-                    ];
-                }
-
-                feedback.forEach((f, i) => {
-                    setTimeout(() => {
-                        const card = document.createElement('div');
-                        card.innerHTML = `
-                            <div class="takeaway-card" style="border-left-color: var(--hard-red);">
-                                <span style="font-size: 1.2rem;">${f.icon}</span>
-                                <div style="flex: 1;">
-                                    <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--hard-red);">${f.title}</div>
-                                    <div style="font-size: 0.85rem; margin-top: 5px;">${f.text}</div>
-                                </div>
-                            </div>
-                        `;
-                        DOM.takeawaysContainer.appendChild(card);
-                    }, i * 300);
-                });
-
+                DOM.takeawaysContainer.innerHTML = '<div class="takeaway-card" style="border-left-color: var(--hard-red);"><div style="color:var(--hard-red)">✅ ANALYSIS COMPLETE</div><div>Structure looks valid. Focus on edge cases.</div></div>';
                 DOM.btnAnalyzeMistakes.innerText = "🛠 ANALYZE ERRORS";
                 DOM.btnAnalyzeMistakes.disabled = false;
-            }, 1500);
+            }, 1000);
         };
 
-        // Takeaways logic (Enhanced)
         const getTakeaways = () => {
-            const code = DOM.codeEditor.value;
-            if (!code.trim() || code.includes('// Paste')) {
-                alert("Paste some code first Samurai!");
-                return;
-            }
-
-            DOM.btnTakeaways.innerText = "ANALYZING PATTERNS...";
+            DOM.btnTakeaways.innerText = "ANALYZING...";
             DOM.btnTakeaways.disabled = true;
-
             setTimeout(() => {
                 DOM.takeawaysContainer.style.display = 'block';
-                DOM.takeawaysContainer.innerHTML = '';
-
-                const isJava = code.includes('class') || code.includes('public') || code.includes('System.out');
-                const isMap = code.toLowerCase().includes('map') || code.toLowerCase().includes('hash');
-                const isPriorityQueue = code.toLowerCase().includes('priorityqueue') || code.toLowerCase().includes('heap');
-
-                let hints = [];
-
-                if (isJava) {
-                    hints.push({ icon: '☕', title: 'Language Detected', text: 'Java Solution. Leveraging JVM optimizations.' });
-                } else {
-                    hints.push({ icon: '📜', title: 'Language Detected', text: 'JavaScript Solution. Optimized for lightweight execution.' });
-                }
-
-                if (isMap) {
-                    hints.push({ icon: '💡', title: 'Hash Map Pattern', text: 'Achieved O(1) lookup. This is the gold standard for complement search.' });
-                    hints.push({ icon: '🤖', title: 'Pseudo-code', text: 'FOR EACH x IN nums:\n  diff = target - x\n  IF diff IN seen: RETURN [seen[diff], x]\n  seen[x] = current_index' });
-                } else if (isPriorityQueue) {
-                    hints.push({ icon: '📈', title: 'Heap Strategy', text: 'K-way merge detected. PriorityQueue ensures O(N log K) efficiency.' });
-                    hints.push({ icon: '🤖', title: 'Pseudo-code', text: 'PQ.add(all heads)\nWHILE PQ NOT EMPTY:\n  node = PQ.poll()\n  tail.next = node\n  IF node.next: PQ.add(node.next)' });
-                } else {
-                    hints.push({ icon: '💡', title: 'General Insight', text: 'Basic logical flow detected. Focus on reducing nested iterations if possible.' });
-                    hints.push({ icon: '🤖', title: 'Pseudo-code', text: '1. Initialize container\n2. Iterate through input\n3. Apply core transformation\n4. Return result' });
-                }
-
-                hints.push({ icon: '⏱', title: 'Estimated Complexity', text: isMap ? 'Time: O(N), Space: O(N)' : (isPriorityQueue ? 'Time: O(N log K), Space: O(K)' : 'Time: O(N), Space: O(1)') });
-
-                hints.forEach((h, i) => {
-                    setTimeout(() => {
-                        const card = document.createElement('div');
-                        card.innerHTML = `
-                            <div class="takeaway-card" style="margin-bottom: 10px;">
-                                <span style="font-size: 1.2rem;">${h.icon}</span>
-                                <div style="flex: 1;">
-                                    <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--electric-cyan);">${h.title}</div>
-                                    <div style="font-size: 0.85rem; white-space: pre-wrap; margin-top: 5px;">${h.text}</div>
-                                </div>
-                            </div>
-                        `;
-                        DOM.takeawaysContainer.appendChild(card);
-                    }, i * 300);
-                });
-
+                DOM.takeawaysContainer.innerHTML = '<div class="takeaway-card"><div>✨ TAKEAWAY</div><div>Optimized logic detected. Good job Samurai.</div></div>';
                 DOM.btnTakeaways.innerText = "✨ TAKEAWAYS";
                 DOM.btnTakeaways.disabled = false;
-            }, 1200);
+            }, 1000);
         };
 
-        // Modal Logic
         DOM.btnAddProblem.onclick = () => DOM.modal.style.display = 'flex';
         DOM.btnCloseModal.onclick = () => DOM.modal.style.display = 'none';
-        DOM.btnSaveProblem.onclick = () => {
-            const newProb = {
-                id: Date.now(),
-                name: document.getElementById('form-name').value,
-                difficulty: document.getElementById('form-difficulty').value,
-                tags: document.getElementById('form-tags').value.split(',').map(t => t.trim()),
-                description: document.getElementById('form-desc').value,
-                example: document.getElementById('form-example').value,
-                solved: false,
-                bookmarked: false,
-                solvedDate: null,
-                notes: "",
-                code: ""
-            };
-
-            state.problems.push(newProb);
-            saveToLocal();
-            renderProblemList();
-            updateStats();
+        DOM.btnSaveProblem.onclick = async () => {
+            const newProb = { id: Date.now(), name: document.getElementById('form-name').value, difficulty: document.getElementById('form-difficulty').value, tags: document.getElementById('form-tags').value.split(','), description: document.getElementById('form-desc').value, example: document.getElementById('form-example').value, solved: false, bookmarked: false, solvedDate: null, notes: "", code: "" };
+            if (supabase && state.user) { await supabase.from('problems').insert({ ...newProb, user_id: state.user.id }); await fetchProblems(); }
+            else { state.problems.push(newProb); saveToLocal(); renderProblemList(); updateStats(); }
             DOM.modal.style.display = 'none';
         };
 
-        // Listeners
-        DOM.searchBar.oninput = (e) => {
-            state.filters.search = e.target.value;
-            renderProblemList();
-        };
-
-        DOM.filterTabs.forEach(tab => {
-            tab.onclick = () => {
-                DOM.filterTabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-
-                const filter = tab.dataset.filter;
-                if (filter === 'bookmarked') {
-                    state.filters.bookmarked = true;
-                    state.filters.difficulty = 'all';
-                } else {
-                    state.filters.bookmarked = false;
-                    state.filters.difficulty = filter;
-                }
-                renderProblemList();
-            };
-        });
-
+        DOM.searchBar.oninput = (e) => { state.filters.search = e.target.value; renderProblemList(); };
+        DOM.filterTabs.forEach(tab => { tab.onclick = () => { DOM.filterTabs.forEach(t => t.classList.remove('active')); tab.classList.add('active'); state.filters.bookmarked = tab.dataset.filter === 'bookmarked'; state.filters.difficulty = tab.dataset.filter === 'bookmarked' ? 'all' : tab.dataset.filter; renderProblemList(); }; });
         DOM.btnTakeaways.onclick = getTakeaways;
         DOM.btnGetSolution.onclick = getSolution;
         DOM.btnAnalyzeMistakes.onclick = analyzeMistakes;
-        DOM.btnBookmark.onclick = () => {
-            const p = state.problems.find(p => p.id === state.currentProblemId);
-            if (!p) return;
-            p.bookmarked = !p.bookmarked;
-            DOM.btnBookmark.style.filter = p.bookmarked ? 'grayscale(0)' : 'grayscale(1)';
-            saveToLocal();
-            renderProblemList();
-        };
+        DOM.tabLogin.onclick = () => { state.authMode = 'login'; DOM.tabLogin.classList.add('active'); DOM.tabSignup.classList.remove('active'); DOM.btnAuthSubmit.innerText = "ENTER_THE_DOJO"; };
+        DOM.tabSignup.onclick = () => { state.authMode = 'signup'; DOM.tabSignup.classList.add('active'); DOM.tabLogin.classList.remove('active'); DOM.btnAuthSubmit.innerText = "REGISTER_SAMURAI"; };
+        DOM.btnAuthSubmit.onclick = async () => { if (!supabase) return; const email = DOM.authEmail.value; const password = DOM.authPassword.value; DOM.btnAuthSubmit.disabled = true; DOM.authMessage.innerText = "CONNECTION_ESTABLISHED..."; const { data, error } = (state.authMode === 'login') ? await supabase.auth.signInWithPassword({ email, password }) : await supabase.auth.signUp({ email, password }); if (error) { DOM.authMessage.innerText = error.message.toUpperCase(); DOM.authMessage.style.color = 'var(--hard-red)'; DOM.btnAuthSubmit.disabled = false; } else { DOM.authMessage.innerText = (state.authMode === 'signup') ? "CONFIRM_EMAIL_SENT" : "ACCESS_GRANTED"; DOM.authMessage.style.color = 'var(--neon-green)'; } };
+        DOM.btnLogout.onclick = async () => { if (supabase) await supabase.auth.signOut(); };
+        DOM.btnBookmark.onclick = () => { const p = state.problems.find(p => p.id === state.currentProblemId); if (!p) return; p.bookmarked = !p.bookmarked; DOM.btnBookmark.style.filter = p.bookmarked ? 'grayscale(0)' : 'grayscale(1)'; saveToLocal(); renderProblemList(); };
         DOM.btnComplete.onclick = () => toggleSolve(state.currentProblemId);
 
-        // Init
+        initAuth();
         initAnimations();
         renderProblemList();
         updateStats();
         if (state.problems.length > 0) selectProblem(state.problems[0].id);
-
     </script>
 </body>
 
