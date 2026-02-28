@@ -123,10 +123,12 @@
             border-radius: 50%;
             position: fixed;
             pointer-events: none;
-            z-index: 9999;
+            z-index: 10000;
             box-shadow: 0 0 10px var(--electric-cyan);
-            transform: translate(-50%, -50%);
-            transition: transform 0.1s ease;
+            transform: translate3d(-100px, -100px, 0);
+            /* Initial off-screen */
+            transition: transform 0.05s linear;
+            /* Faster response */
         }
 
         /* Layout */
@@ -623,7 +625,7 @@
         </div>
     </div>
 
-    <div id="cursor-dot"></div>
+    <!-- Rest of app -->
 
     <header>
         <div class="logo">CODE_DOJO //</div>
@@ -789,6 +791,8 @@
         </div>
     </div>
 
+    <div id="cursor-dot"></div>
+
     <script>
         // --- SUPABASE CONFIG ---
         const SUPABASE_URL = "YOUR_SUPABASE_URL";
@@ -945,9 +949,10 @@
             dashStreak: document.getElementById('dash-streak')
         };
 
-        document.addEventListener('mousemove', (e) => {
-            DOM.cursor.style.left = e.clientX + 'px';
-            DOM.cursor.style.top = e.clientY + 'px';
+        window.addEventListener('mousemove', (e) => {
+            requestAnimationFrame(() => {
+                DOM.cursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
+            });
         });
 
         const initAnimations = () => {
