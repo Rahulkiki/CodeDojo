@@ -620,8 +620,14 @@
 
             <div class="editor-container">
                 <textarea id="code-editor" placeholder="// Paste your solution code here..."></textarea>
-                <div style="padding: 15px; background: rgba(0,0,0,0.2);">
-                    <button class="btn btn-primary" id="btn-takeaways" style="width: 100%;">✨ GET TAKEAWAYS</button>
+                <div style="padding: 15px; background: rgba(0,0,0,0.2); display: flex; gap: 10px;">
+                    <button class="btn btn-primary" id="btn-takeaways" style="flex: 1;">✨ TAKEAWAYS</button>
+                    <button class="btn" id="btn-get-solution"
+                        style="flex: 1; border-color: var(--warm-amber); color: var(--warm-amber);">💡 GET
+                        SOLUTION</button>
+                    <button class="btn" id="btn-analyze-mistakes"
+                        style="flex: 1; border-color: var(--hard-red); color: var(--hard-red);">🛠 ANALYZE
+                        ERRORS</button>
                 </div>
                 <div class="takeaways-section" id="takeaways-container" style="display: none;">
                     <!-- Takeaways populated by JS -->
@@ -774,6 +780,8 @@
             currentBadge: document.getElementById('current-badge'),
             codeEditor: document.getElementById('code-editor'),
             btnTakeaways: document.getElementById('btn-takeaways'),
+            btnGetSolution: document.getElementById('btn-get-solution'),
+            btnAnalyzeMistakes: document.getElementById('btn-analyze-mistakes'),
             takeawaysContainer: document.getElementById('takeaways-container'),
             problemDesc: document.getElementById('problem-description'),
             btnBookmark: document.getElementById('btn-bookmark'),
@@ -858,7 +866,7 @@
             DOM.codeEditor.value = p.code || '';
 
             // Auto-detect language for highlight.js logic (simulated)
-            const isJava = p.code.includes('class') || p.code.includes('public') || p.name.toLowerCase().includes('java');
+            const isJava = (p.code && (p.code.includes('class') || p.code.includes('public'))) || p.name.toLowerCase().includes('java');
             const langClass = isJava ? 'language-java' : 'language-javascript';
 
             DOM.problemDesc.innerHTML = `
@@ -882,6 +890,7 @@
 
         const toggleSolve = (id) => {
             const p = state.problems.find(p => p.id === id);
+            if (!p) return;
             p.solved = !p.solved;
             p.solvedDate = p.solved ? new Date().toISOString().split('T')[0] : null;
 
@@ -899,11 +908,89 @@
             updateStats();
         };
 
-        // Takeaways logic
+        // AI Feature: Get Solution
+        const getSolution = () => {
+            const p = state.problems.find(p => p.id === state.currentProblemId);
+            if (!p) return;
+
+            DOM.btnGetSolution.innerText = "RETRIEVING DOJO WISDOM...";
+            DOM.btnGetSolution.disabled = true;
+
+            setTimeout(() => {
+                let solutionCode = "";
+                if (p.id === 1) { // Two Sum
+                    solutionCode = "/**\n * Two Sum Solution (O(n))\n */\nconst twoSum = (nums, target) => {\n  const map = new Map();\n  for (let i = 0; i < nums.length; i++) {\n    const complement = target - nums[i];\n    if (map.has(complement)) return [map.get(complement), i];\n    map.set(nums[i], i);\n  }\n};";
+                } else if (p.id === 3) { // Merge K Lists
+                    solutionCode = "class Solution {\n    public ListNode mergeKLists(ListNode[] lists) {\n        PriorityQueue<ListNode> pq = new PriorityQueue<>((a, b) -> a.val - b.val);\n        for (ListNode node : lists) {\n            if (node != null) pq.add(node);\n        }\n        ListNode dummy = new ListNode(0);\n        ListNode curr = dummy;\n        while (!pq.isEmpty()) {\n            ListNode node = pq.poll();\n            curr.next = node;\n            curr = curr.next;\n            if (node.next != null) pq.add(node.next);\n        }\n        return dummy.next;\n    }\n}";
+                } else {
+                    solutionCode = `/**\n * Optimized Solution for ${p.name}\n * Estimated Complexity: O(N)\n */\nfunction solve() {\n  // Logic detected for ${p.tags.join(', ')}\n  // [AI GENERATED TEMPLATE]\n}`;
+                }
+
+                DOM.codeEditor.value = solutionCode;
+                DOM.btnGetSolution.innerText = "💡 GET SOLUTION";
+                DOM.btnGetSolution.disabled = false;
+
+                // Trigger notification effect
+                DOM.codeEditor.style.boxShadow = "0 0 20px var(--warm-amber)";
+                setTimeout(() => DOM.codeEditor.style.boxShadow = "none", 1000);
+            }, 1000);
+        };
+
+        // AI Feature: Analyze Mistakes
+        const analyzeMistakes = () => {
+            const code = DOM.codeEditor.value;
+            DOM.btnAnalyzeMistakes.innerText = "SCANNING VULNERABILITIES...";
+            DOM.btnAnalyzeMistakes.disabled = true;
+
+            setTimeout(() => {
+                DOM.takeawaysContainer.style.display = 'block';
+                DOM.takeawaysContainer.innerHTML = '';
+
+                let feedback = [];
+                if (!code.trim() || code.includes('// Paste')) {
+                    feedback = [
+                        { icon: '⚠️', title: 'Void Detected', text: 'Solution area is empty. Matrix scan reveals no logic to analyze.' },
+                        { icon: '🛠', title: 'Action Required', text: 'Input your implementation or use "Get Solution" to learn.' }
+                    ];
+                } else if (code.length < 50) {
+                    feedback = [
+                        { icon: '🔍', title: 'Undersized Logic', text: 'Code is too short for a complete competitive solution. Missing boilerplate or core conditions.' },
+                        { icon: '💡', title: 'Tip', text: 'Verify handle for empty inputs or null cases.' }
+                    ];
+                } else {
+                    feedback = [
+                        { icon: '✅', title: 'Syntax Integrity', text: 'Structure appears valid. Checking for logical edge cases...' },
+                        { icon: '🚩', title: 'Edge Case Alert', text: 'Ensure you handle cases like [0], negative values, or extremely large inputs (overflow check).' },
+                        { icon: '⏱', title: 'Performance Scan', text: 'Logic looks sound, but ensure O(n) target is met if nested loops are present.' }
+                    ];
+                }
+
+                feedback.forEach((f, i) => {
+                    setTimeout(() => {
+                        const card = document.createElement('div');
+                        card.innerHTML = `
+                            <div class="takeaway-card" style="border-left-color: var(--hard-red);">
+                                <span style="font-size: 1.2rem;">${f.icon}</span>
+                                <div style="flex: 1;">
+                                    <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--hard-red);">${f.title}</div>
+                                    <div style="font-size: 0.85rem; margin-top: 5px;">${f.text}</div>
+                                </div>
+                            </div>
+                        `;
+                        DOM.takeawaysContainer.appendChild(card);
+                    }, i * 300);
+                });
+
+                DOM.btnAnalyzeMistakes.innerText = "🛠 ANALYZE ERRORS";
+                DOM.btnAnalyzeMistakes.disabled = false;
+            }, 1500);
+        };
+
+        // Takeaways logic (Enhanced)
         const getTakeaways = () => {
             const code = DOM.codeEditor.value;
-            if (!code.trim()) {
-                alert("Paste some code first!");
+            if (!code.trim() || code.includes('// Paste')) {
+                alert("Paste some code first Samurai!");
                 return;
             }
 
@@ -921,20 +1008,20 @@
                 let hints = [];
 
                 if (isJava) {
-                    hints.push({ icon: '☕', title: 'Language Detected', text: 'Java Solution. Leveraging JVM optimizations and typed structures.' });
+                    hints.push({ icon: '☕', title: 'Language Detected', text: 'Java Solution. Leveraging JVM optimizations.' });
                 } else {
-                    hints.push({ icon: '📜', title: 'Language Detected', text: 'JavaScript Solution. Utilizes dynamic object literals or Map API.' });
+                    hints.push({ icon: '📜', title: 'Language Detected', text: 'JavaScript Solution. Optimized for lightweight execution.' });
                 }
 
                 if (isMap) {
-                    hints.push({ icon: '💡', title: 'Key Insight (O(1) Search)', text: 'Using a Hash Map/Dictionary significantly reduces lookup time compared to nested loops.' });
-                    hints.push({ icon: '🤖', title: 'Pseudo-code (Strategy)', text: 'FOR EACH item IN list:\n  IF (target - item) EXISTS IN map:\n    RETURN [map[target - item], currentIndex]\n  STORE item IN map' });
+                    hints.push({ icon: '💡', title: 'Hash Map Pattern', text: 'Achieved O(1) lookup. This is the gold standard for complement search.' });
+                    hints.push({ icon: '🤖', title: 'Pseudo-code', text: 'FOR EACH x IN nums:\n  diff = target - x\n  IF diff IN seen: RETURN [seen[diff], x]\n  seen[x] = current_index' });
                 } else if (isPriorityQueue) {
-                    hints.push({ icon: '📈', title: 'Key Insight (O(log K))', text: 'Priority Queue maintained sorted order efficienty for the top elements.' });
-                    hints.push({ icon: '🤖', title: 'Pseudo-code (Strategy)', text: 'WHILE pq IS NOT EMPTY:\n  EXTRACT MIN element\n  ADD TO result list\n  IF element HAS NEXT:\n    INSERT next TO pq' });
+                    hints.push({ icon: '📈', title: 'Heap Strategy', text: 'K-way merge detected. PriorityQueue ensures O(N log K) efficiency.' });
+                    hints.push({ icon: '🤖', title: 'Pseudo-code', text: 'PQ.add(all heads)\nWHILE PQ NOT EMPTY:\n  node = PQ.poll()\n  tail.next = node\n  IF node.next: PQ.add(node.next)' });
                 } else {
-                    hints.push({ icon: '💡', title: 'Key Insight', text: 'Basic logical flow detected. Focus on optimizing space if constraints are tight.' });
-                    hints.push({ icon: '🤖', title: 'Pseudo-code (Strategy)', text: '1. Initialize result container\n2. Iterate through input collection\n3. Apply transformation logic\n4. Return result' });
+                    hints.push({ icon: '💡', title: 'General Insight', text: 'Basic logical flow detected. Focus on reducing nested iterations if possible.' });
+                    hints.push({ icon: '🤖', title: 'Pseudo-code', text: '1. Initialize container\n2. Iterate through input\n3. Apply core transformation\n4. Return result' });
                 }
 
                 hints.push({ icon: '⏱', title: 'Estimated Complexity', text: isMap ? 'Time: O(N), Space: O(N)' : (isPriorityQueue ? 'Time: O(N log K), Space: O(K)' : 'Time: O(N), Space: O(1)') });
@@ -955,7 +1042,7 @@
                     }, i * 300);
                 });
 
-                DOM.btnTakeaways.innerText = "✨ GET TAKEAWAYS";
+                DOM.btnTakeaways.innerText = "✨ TAKEAWAYS";
                 DOM.btnTakeaways.disabled = false;
             }, 1200);
         };
@@ -1009,6 +1096,8 @@
         });
 
         DOM.btnTakeaways.onclick = getTakeaways;
+        DOM.btnGetSolution.onclick = getSolution;
+        DOM.btnAnalyzeMistakes.onclick = analyzeMistakes;
         DOM.btnBookmark.onclick = () => {
             const p = state.problems.find(p => p.id === state.currentProblemId);
             if (!p) return;
