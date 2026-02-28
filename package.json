@@ -1,0 +1,13 @@
+{
+  "name": "codedojo",
+  "version": "1.0.0",
+  "description": "CodeDojo Cyberpunk Study Tracker",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

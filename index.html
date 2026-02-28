@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeDojo | Cyberpunk Study Tracker</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
+    <!-- Highlight.js -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --bg-deep-navy: #0A0F1E;
+            --electric-cyan: #00F5FF;
+            --neon-green: #39FF14;
+            --warm-amber: #FFB800;
+            --hard-red: #FF3131;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --font-mono: 'Space Mono', monospace;
+            --font-body: 'DM Sans', sans-serif;
+            --transition-speed: 0.3s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            cursor: none;
+            /* Custom cursor */
+        }
+
+        body {
+            background-color: var(--bg-deep-navy);
+            background-image:
+                linear-gradient(rgba(0, 245, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 245, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+            color: #E0E0E0;
+            font-family: var(--font-body);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-deep-navy);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--electric-cyan);
+            border-radius: 0;
+        }
+
+        /* Custom Cursor */
+        #cursor-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--electric-cyan);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            box-shadow: 0 0 10px var(--electric-cyan);
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease;
+        }
+
+        /* Layout */
+        header {
+            height: 60px;
+            background: rgba(10, 15, 30, 0.8);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--electric-cyan);
+            text-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+            letter-spacing: 2px;
+        }
+
+        main {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 110px);
+            /* Space for header and dashboard */
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .panel-left {
+            width: 22%;
+        }
+
+        .panel-center {
+            width: 45%;
+        }
+
+        .panel-right {
+            width: 33%;
+        }
+
+        @media (max-width: 1200px) {
+            .panel-left {
+                width: 30%;
+            }
+
+            .panel-center {
+                width: 70%;
+            }
+
+            .panel-right {
+                display: none;
+            }
+        }
+
+        /* Panel Headers */
+        .panel-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: var(--electric-cyan);
+            letter-spacing: 1px;
+        }
+
+        /* Left Panel Components */
+        .stats-top {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .progress-ring-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .streak-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+        }
+
+        .dot.active {
+            background: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+
+        .search-container {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .search-bar {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 8px 12px;
+            font-family: var(--font-body);
+            outline: none;
+        }
+
+        .filter-tabs {
+            display: flex;
+            padding: 0 15px;
+            gap: 10px;
+            border-bottom: 1px solid var(--glass-border);
+            overflow-x: auto;
+        }
+
+        .filter-tab {
+            padding: 10px 0;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+
+        .filter-tab.active {
+            color: var(--electric-cyan);
+            border-bottom-color: var(--electric-cyan);
+        }
+
+        .problem-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .problem-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--glass-border);
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: var(--transition-speed);
+        }
+
+        .problem-card:hover {
+            border-color: var(--electric-cyan);
+            box-shadow: inset 0 0 10px rgba(0, 245, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .problem-card.active {
+            background: rgba(0, 245, 255, 0.05);
+            border-color: var(--electric-cyan);
+        }
+
+        .badge {
+            padding: 2px 8px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-family: var(--font-mono);
+        }
+
+        .badge.easy {
+            background: rgba(57, 255, 20, 0.1);
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+        }
+
+        .badge.medium {
+            background: rgba(255, 184, 0, 0.1);
+            color: var(--warm-amber);
+            border: 1px solid var(--warm-amber);
+        }
+
+        .badge.hard {
+            background: rgba(255, 49, 49, 0.1);
+            color: var(--hard-red);
+            border: 1px solid var(--hard-red);
+        }
+
+        /* Center Panel Components */
+        .workspace-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .workspace-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            border-right: 1px solid var(--glass-border);
+        }
+
+        .tab.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--electric-cyan);
+            border-bottom: 2px solid var(--electric-cyan);
+        }
+
+        .editor-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        textarea#code-editor {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #A9B1D6;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9rem;
+            padding: 20px;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+
+        .takeaways-section {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-top: 1px solid var(--glass-border);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .takeaway-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--electric-cyan);
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 12px;
+            animation: slideInLeft 0.3s ease forwards;
+        }
+
+        /* Right Panel Components */
+        .problem-description {
+            padding: 25px;
+            overflow-y: auto;
+            flex: 1;
+            line-height: 1.6;
+        }
+
+        .problem-description h1 {
+            font-family: var(--font-mono);
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .tag-chip {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            margin-right: 5px;
+            margin-bottom: 15px;
+            color: var(--electric-cyan);
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 2px 6px;
+            font-family: var(--font-mono);
+            color: var(--warm-amber);
+        }
+
+        pre code {
+            display: block;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        /* Buttons */
+        .btn {
+            background: transparent;
+            border: 1px solid var(--electric-cyan);
+            color: var(--electric-cyan);
+            padding: 8px 16px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: rgba(0, 245, 255, 0.1);
+            box-shadow: 0 0 12px var(--electric-cyan);
+        }
+
+        .btn-primary {
+            background: var(--electric-cyan);
+            color: var(--bg-deep-navy);
+            font-weight: bold;
+        }
+
+        .btn-green {
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        .btn-green:hover {
+            background: rgba(57, 255, 20, 0.1);
+            box-shadow: 0 0 12px var(--neon-green);
+        }
+
+        /* Dashboard */
+        .dashboard {
+            height: 50px;
+            background: rgba(10, 15, 30, 0.9);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 40px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        .stat-item span {
+            color: var(--electric-cyan);
+            margin-left: 5px;
+        }
+
+        .quote {
+            flex: 1;
+            text-align: right;
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal {
+            background: var(--bg-deep-navy);
+            border: 1px solid var(--electric-cyan);
+            width: 600px;
+            max-width: 90%;
+            padding: 30px;
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.2);
+        }
+
+        .modal-header {
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--electric-cyan);
+        }
+
+        .form-control {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 10px;
+            color: white;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--electric-cyan);
+        }
+
+        /* Animations */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .animate-in {
+            animation: slideInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="cursor-dot"></div>
+
+    <header>
+        <div class="logo">CODE_DOJO //</div>
+        <button class="btn btn-primary" id="btn-add-problem">+ ADD PROBLEM</button>
+    </header>
+
+    <main>
+        <!-- Left Panel -->
+        <section class="panel panel-left" id="panel-1">
+            <div class="stats-top">
+                <div class="progress-ring-container">
+                    <svg width="60" height="60">
+                        <circle cx="30" cy="30" r="26" stroke="rgba(255,255,255,0.1)" stroke-width="4"
+                            fill="transparent" />
+                        <circle id="progress-circle" cx="30" cy="30" r="26" stroke="#00F5FF" stroke-width="4"
+                            fill="transparent" stroke-dasharray="163.36" stroke-dashoffset="163.36"
+                            transform="rotate(-90 30 30)" />
+                    </svg>
+                    <div>
+                        <div style="font-family: var(--font-mono); color: var(--electric-cyan); font-size: 1.2rem;"
+                            id="progress-text">0/0</div>
+                        <div style="font-size: 0.65rem; color: rgba(255,255,255,0.5);">SOLVED TODAY</div>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 0.65rem; margin-bottom: 5px; color: rgba(255,255,255,0.5);">WEEKLY STREAK
+                    </div>
+                    <div class="streak-dots" id="streak-dots">
+                        <!-- Dots populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-container">
+                <input type="text" class="search-bar" id="search-input" placeholder="SEARCH PROBLEMS_">
+            </div>
+
+            <div class="filter-tabs">
+                <div class="filter-tab active" data-filter="all">ALL</div>
+                <div class="filter-tab" data-filter="easy">EASY</div>
+                <div class="filter-tab" data-filter="medium">MEDIUM</div>
+                <div class="filter-tab" data-filter="hard">HARD</div>
+                <div class="filter-tab" data-filter="bookmarked">⭐</div>
+            </div>
+
+            <div class="problem-list" id="problem-list">
+                <!-- Cards populated by JS -->
+            </div>
+        </section>
+
+        <!-- Center Panel -->
+        <section class="panel panel-center" id="panel-2">
+            <div class="workspace-header">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <span class="badge easy" id="current-badge">EASY</span>
+                        <h2 style="font-family: var(--font-mono); font-size: 1.4rem; margin-top: 10px;"
+                            id="current-title">SELECT A PROBLEM</h2>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-green" id="btn-complete">✅ COMPLETE</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace-tabs">
+                <div class="tab active" data-tab="solution">SOLUTION</div>
+                <div class="tab" data-tab="notes">NOTES</div>
+                <div class="tab" data-tab="history">HISTORY</div>
+            </div>
+
+            <div class="editor-container">
+                <textarea id="code-editor" placeholder="// Paste your solution code here..."></textarea>
+                <div style="padding: 15px; background: rgba(0,0,0,0.2);">
+                    <button class="btn btn-primary" id="btn-takeaways" style="width: 100%;">✨ GET TAKEAWAYS</button>
+                </div>
+                <div class="takeaways-section" id="takeaways-container" style="display: none;">
+                    <!-- Takeaways populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel -->
+        <section class="panel panel-right" id="panel-3">
+            <div class="panel-header">
+                <h2>PROBLEM_DESCRIPTION</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-bookmark"
+                        style="background: none; border: none; font-size: 1.2rem; filter: grayscale(1);">⭐</button>
+                </div>
+            </div>
+            <div class="problem-description" id="problem-description">
+                <!-- Description content -->
+                <p style="color: rgba(255,255,255,0.4);">Select a problem from the list to view details.</p>
+            </div>
+            <div class="panel-header" style="border-top: 1px solid var(--glass-border); border-bottom: none;">
+                <h2>RELATED_TASKS</h2>
+            </div>
+            <div style="padding: 15px; display: flex; flex-direction: column; gap: 8px;" id="related-problems">
+                <!-- Related links -->
+            </div>
+        </section>
+    </main>
+
+    <div class="dashboard">
+        <div class="stat-item">SOLVED_TODAY <span id="dash-solved">0</span></div>
+        <div class="stat-item">THIS_WEEK <span id="dash-week">0</span></div>
+        <div class="stat-item">STREAK <span id="dash-streak">0</span></div>
+        <div class="stat-item">FAV_TAG <span id="dash-tag">ARRAY</span></div>
+        <div class="quote" id="daily-quote">"The only way to master the machine is to speak its language fluently."
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 style="font-family: var(--font-mono); color: var(--electric-cyan);">ADD_NEW_PROBLEM</h2>
+                <button id="btn-close-modal"
+                    style="background:none; border:none; color:white; font-size:1.5rem;">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>PROBLEM_NAME</label>
+                <input type="text" class="form-control" id="form-name" placeholder="e.g. Reverse Linked List">
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>DIFFICULTY</label>
+                    <select class="form-control" id="form-difficulty">
+                        <option value="easy">EASY</option>
+                        <option value="medium">MEDIUM</option>
+                        <option value="hard">HARD</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>TAGS (COMMA SEPARATED)</label>
+                    <input type="text" class="form-control" id="form-tags" placeholder="Array, Two Pointer">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>DESCRIPTION (HTML SUPPORTED)</label>
+                <textarea class="form-control" id="form-desc" style="height: 100px;"></textarea>
+            </div>
+            <div class="form-group">
+                <label>EXAMPLE INPUT/OUTPUT</label>
+                <textarea class="form-control" id="form-example" style="height: 60px;"></textarea>
+            </div>
+            <button class="btn btn-primary" id="btn-save-problem" style="width: 100%;">SAVE_TO_DATABASE</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA LAYER ---
+        const DEFAULT_PROBLEMS = [
+            {
+                id: 1,
+                name: "Two Sum",
+                difficulty: "easy",
+                tags: ["Array", "Hash Table"],
+                description: "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to target.",
+                example: "Input: nums = [2,7,11,15], target = 9\nOutput: [0,1]",
+                solved: false,
+                bookmarked: true,
+                solvedDate: null,
+                notes: "",
+                code: ""
+            },
+            {
+                id: 2,
+                name: "Add Two Numbers",
+                difficulty: "medium",
+                tags: ["Linked List", "Recursion"],
+                description: "You are given two non-empty linked lists representing two non-negative integers. The digits are stored in reverse order.",
+                example: "Input: l1 = [2,4,3], l2 = [5,6,4]\nOutput: [7,0,8]",
+                solved: true,
+                bookmarked: false,
+                solvedDate: new Date().toISOString().split('T')[0],
+                notes: "Remember to handle the carry logic.",
+                code: "// Dummy solution code\nconst addTwoNumbers = (l1, l2) => {\n  // Logic here\n};"
+            },
+            {
+                id: 3,
+                name: "Merge K Sorted Lists (Java)",
+                difficulty: "hard",
+                tags: ["Heap", "Linked List", "Divide and Conquer"],
+                description: "You are given an array of `k` linked-lists `lists`, each linked-list is sorted in ascending order. Merge all the linked-lists into one sorted linked-list and return it.",
+                example: "Input: lists = [[1,4,5],[1,3,4],[2,6]]\nOutput: [1,1,2,3,4,4,5,6]",
+                solved: false,
+                bookmarked: false,
+                solvedDate: null,
+                notes: "Use PriorityQueue for O(N log k) complexity.",
+                code: "class Solution {\n    public ListNode mergeKLists(ListNode[] lists) {\n        PriorityQueue<ListNode> pq = new PriorityQueue<>((a, b) -> a.val - b.val);\n        for (ListNode node : lists) {\n            if (node != null) pq.add(node);\n        }\n        // ... logic\n    }\n}"
+            }
+        ];
+
+        let state = {
+            problems: JSON.parse(localStorage.getItem('codedojo_problems')) || DEFAULT_PROBLEMS,
+            currentProblemId: null,
+            filters: {
+                search: '',
+                difficulty: 'all',
+                bookmarked: false
+            }
+        };
+
+        const saveToLocal = () => {
+            localStorage.setItem('codedojo_problems', JSON.stringify(state.problems));
+        };
+
+        // --- UI CONTROLLER ---
+        const DOM = {
+            problemList: document.getElementById('problem-list'),
+            panel1: document.getElementById('panel-1'),
+            panel2: document.getElementById('panel-2'),
+            panel3: document.getElementById('panel-3'),
+            cursor: document.getElementById('cursor-dot'),
+            modal: document.getElementById('modal-overlay'),
+            btnAddProblem: document.getElementById('btn-add-problem'),
+            btnSaveProblem: document.getElementById('btn-save-problem'),
+            btnCloseModal: document.getElementById('btn-close-modal'),
+            searchBar: document.getElementById('search-input'),
+            filterTabs: document.querySelectorAll('.filter-tab'),
+            // Workspace
+            currentTitle: document.getElementById('current-title'),
+            currentBadge: document.getElementById('current-badge'),
+            codeEditor: document.getElementById('code-editor'),
+            btnTakeaways: document.getElementById('btn-takeaways'),
+            takeawaysContainer: document.getElementById('takeaways-container'),
+            problemDesc: document.getElementById('problem-description'),
+            btnBookmark: document.getElementById('btn-bookmark'),
+            btnComplete: document.getElementById('btn-complete'),
+            // Dashboard
+            progressCircle: document.getElementById('progress-circle'),
+            progressText: document.getElementById('progress-text'),
+            streakDots: document.getElementById('streak-dots'),
+            dashSolved: document.getElementById('dash-solved'),
+            dashWeek: document.getElementById('dash-week'),
+            dashStreak: document.getElementById('dash-streak')
+        };
+
+        // Custom Cursor
+        document.addEventListener('mousemove', (e) => {
+            DOM.cursor.style.left = e.clientX + 'px';
+            DOM.cursor.style.top = e.clientY + 'px';
+        });
+
+        // Animations
+        const initAnimations = () => {
+            [DOM.panel1, DOM.panel2, DOM.panel3].forEach((panel, i) => {
+                setTimeout(() => {
+                    panel.classList.add('animate-in');
+                }, 150 * (i + 1));
+            });
+        };
+
+        // Render List
+        const renderProblemList = () => {
+            const filtered = state.problems.filter(p => {
+                const searchMatch = p.name.toLowerCase().includes(state.filters.search.toLowerCase()) ||
+                    p.tags.some(t => t.toLowerCase().includes(state.filters.search.toLowerCase()));
+                const difficultyMatch = state.filters.difficulty === 'all' || p.difficulty === state.filters.difficulty;
+                const bookmarkMatch = !state.filters.bookmarked || p.bookmarked;
+                return searchMatch && difficultyMatch && bookmarkMatch;
+            });
+
+            DOM.problemList.innerHTML = filtered.map(p => `
+                <div class="problem-card ${p.id === state.currentProblemId ? 'active' : ''}" onclick="selectProblem(${p.id})">
+                    <input type="checkbox" ${p.solved ? 'checked' : ''} onclick="event.stopPropagation(); toggleSolve(${p.id})">
+                    <div style="flex:1">
+                        <div style="font-size: 0.9rem; font-weight: 500;">${p.name}</div>
+                        <div style="margin-top: 5px;">
+                            <span class="badge ${p.difficulty}">${p.difficulty}</span>
+                            ${p.bookmarked ? '<span style="color:var(--warm-amber); margin-left: 5px;">⭐</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        const updateStats = () => {
+            const today = new Date().toISOString().split('T')[0];
+            const solvedToday = state.problems.filter(p => p.solvedDate === today).length;
+            const total = state.problems.length;
+
+            // Progress Ring
+            const radius = 26;
+            const circumference = 2 * Math.PI * radius;
+            const percentage = total > 0 ? (solvedToday / total) : 0;
+            const offset = circumference - (percentage * circumference);
+
+            DOM.progressCircle.style.strokeDashoffset = offset;
+            DOM.progressText.innerText = `${solvedToday}/${total}`;
+            DOM.dashSolved.innerText = solvedToday;
+
+            // Streak Dots (Mock)
+            DOM.streakDots.innerHTML = Array(7).fill(0).map((_, i) => `
+                <div class="dot ${i < 5 ? 'active' : ''}"></div>
+            `).join('');
+        };
+
+        // Actions
+        const selectProblem = (id) => {
+            state.currentProblemId = id;
+            const p = state.problems.find(p => p.id === id);
+
+            DOM.currentTitle.innerText = p.name;
+            DOM.currentBadge.innerText = p.difficulty;
+            DOM.currentBadge.className = `badge ${p.difficulty}`;
+            DOM.codeEditor.value = p.code || '';
+
+            // Auto-detect language for highlight.js logic (simulated)
+            const isJava = p.code.includes('class') || p.code.includes('public') || p.name.toLowerCase().includes('java');
+            const langClass = isJava ? 'language-java' : 'language-javascript';
+
+            DOM.problemDesc.innerHTML = `
+                <h1>${p.name}</h1>
+                <div style="margin-bottom: 15px;">
+                    ${p.tags.map(t => `<span class="tag-chip">${t}</span>`).join('')}
+                </div>
+                <p>${p.description}</p>
+                <div style="margin-top: 20px;">
+                    <h3 style="font-family: var(--font-mono); font-size: 0.9rem; color: var(--electric-cyan);">EXAMPLE</h3>
+                    <pre><code class="language-text">${p.example}</code></pre>
+                </div>
+            `;
+
+            DOM.btnBookmark.style.filter = p.bookmarked ? 'grayscale(0)' : 'grayscale(1)';
+            DOM.takeawaysContainer.style.display = 'none';
+
+            renderProblemList();
+            hljs.highlightAll();
+        };
+
+        const toggleSolve = (id) => {
+            const p = state.problems.find(p => p.id === id);
+            p.solved = !p.solved;
+            p.solvedDate = p.solved ? new Date().toISOString().split('T')[0] : null;
+
+            if (p.solved) {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#00F5FF', '#39FF14', '#FFB800']
+                });
+            }
+
+            saveToLocal();
+            renderProblemList();
+            updateStats();
+        };
+
+        // Takeaways logic
+        const getTakeaways = () => {
+            const code = DOM.codeEditor.value;
+            if (!code.trim()) {
+                alert("Paste some code first!");
+                return;
+            }
+
+            DOM.btnTakeaways.innerText = "ANALYZING PATTERNS...";
+            DOM.btnTakeaways.disabled = true;
+
+            setTimeout(() => {
+                DOM.takeawaysContainer.style.display = 'block';
+                DOM.takeawaysContainer.innerHTML = '';
+
+                const isJava = code.includes('class') || code.includes('public') || code.includes('System.out');
+                const isMap = code.toLowerCase().includes('map') || code.toLowerCase().includes('hash');
+                const isPriorityQueue = code.toLowerCase().includes('priorityqueue') || code.toLowerCase().includes('heap');
+
+                let hints = [];
+
+                if (isJava) {
+                    hints.push({ icon: '☕', title: 'Language Detected', text: 'Java Solution. Leveraging JVM optimizations and typed structures.' });
+                } else {
+                    hints.push({ icon: '📜', title: 'Language Detected', text: 'JavaScript Solution. Utilizes dynamic object literals or Map API.' });
+                }
+
+                if (isMap) {
+                    hints.push({ icon: '💡', title: 'Key Insight (O(1) Search)', text: 'Using a Hash Map/Dictionary significantly reduces lookup time compared to nested loops.' });
+                    hints.push({ icon: '🤖', title: 'Pseudo-code (Strategy)', text: 'FOR EACH item IN list:\n  IF (target - item) EXISTS IN map:\n    RETURN [map[target - item], currentIndex]\n  STORE item IN map' });
+                } else if (isPriorityQueue) {
+                    hints.push({ icon: '📈', title: 'Key Insight (O(log K))', text: 'Priority Queue maintained sorted order efficienty for the top elements.' });
+                    hints.push({ icon: '🤖', title: 'Pseudo-code (Strategy)', text: 'WHILE pq IS NOT EMPTY:\n  EXTRACT MIN element\n  ADD TO result list\n  IF element HAS NEXT:\n    INSERT next TO pq' });
+                } else {
+                    hints.push({ icon: '💡', title: 'Key Insight', text: 'Basic logical flow detected. Focus on optimizing space if constraints are tight.' });
+                    hints.push({ icon: '🤖', title: 'Pseudo-code (Strategy)', text: '1. Initialize result container\n2. Iterate through input collection\n3. Apply transformation logic\n4. Return result' });
+                }
+
+                hints.push({ icon: '⏱', title: 'Estimated Complexity', text: isMap ? 'Time: O(N), Space: O(N)' : (isPriorityQueue ? 'Time: O(N log K), Space: O(K)' : 'Time: O(N), Space: O(1)') });
+
+                hints.forEach((h, i) => {
+                    setTimeout(() => {
+                        const card = document.createElement('div');
+                        card.innerHTML = `
+                            <div class="takeaway-card" style="margin-bottom: 10px;">
+                                <span style="font-size: 1.2rem;">${h.icon}</span>
+                                <div style="flex: 1;">
+                                    <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--electric-cyan);">${h.title}</div>
+                                    <div style="font-size: 0.85rem; white-space: pre-wrap; margin-top: 5px;">${h.text}</div>
+                                </div>
+                            </div>
+                        `;
+                        DOM.takeawaysContainer.appendChild(card);
+                    }, i * 300);
+                });
+
+                DOM.btnTakeaways.innerText = "✨ GET TAKEAWAYS";
+                DOM.btnTakeaways.disabled = false;
+            }, 1200);
+        };
+
+        // Modal Logic
+        DOM.btnAddProblem.onclick = () => DOM.modal.style.display = 'flex';
+        DOM.btnCloseModal.onclick = () => DOM.modal.style.display = 'none';
+        DOM.btnSaveProblem.onclick = () => {
+            const newProb = {
+                id: Date.now(),
+                name: document.getElementById('form-name').value,
+                difficulty: document.getElementById('form-difficulty').value,
+                tags: document.getElementById('form-tags').value.split(',').map(t => t.trim()),
+                description: document.getElementById('form-desc').value,
+                example: document.getElementById('form-example').value,
+                solved: false,
+                bookmarked: false,
+                solvedDate: null,
+                notes: "",
+                code: ""
+            };
+
+            state.problems.push(newProb);
+            saveToLocal();
+            renderProblemList();
+            updateStats();
+            DOM.modal.style.display = 'none';
+        };
+
+        // Listeners
+        DOM.searchBar.oninput = (e) => {
+            state.filters.search = e.target.value;
+            renderProblemList();
+        };
+
+        DOM.filterTabs.forEach(tab => {
+            tab.onclick = () => {
+                DOM.filterTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                const filter = tab.dataset.filter;
+                if (filter === 'bookmarked') {
+                    state.filters.bookmarked = true;
+                    state.filters.difficulty = 'all';
+                } else {
+                    state.filters.bookmarked = false;
+                    state.filters.difficulty = filter;
+                }
+                renderProblemList();
+            };
+        });
+
+        DOM.btnTakeaways.onclick = getTakeaways;
+        DOM.btnBookmark.onclick = () => {
+            const p = state.problems.find(p => p.id === state.currentProblemId);
+            if (!p) return;
+            p.bookmarked = !p.bookmarked;
+            DOM.btnBookmark.style.filter = p.bookmarked ? 'grayscale(0)' : 'grayscale(1)';
+            saveToLocal();
+            renderProblemList();
+        };
+        DOM.btnComplete.onclick = () => toggleSolve(state.currentProblemId);
+
+        // Init
+        initAnimations();
+        renderProblemList();
+        updateStats();
+        if (state.problems.length > 0) selectProblem(state.problems[0].id);
+
+    </script>
+</body>
+
+</html>
